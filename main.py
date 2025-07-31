@@ -31,7 +31,7 @@ from pyrogram import Client, filters
 from pyrogram.types import User, Message
 from pyrogram.enums import ChatMemberStatus
 from pyrogram.raw.functions.channels import GetParticipants
-from config import api_id, api_hash, bot_token, auth_users
+from config import auth_users
 from datetime import datetime
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -39,13 +39,18 @@ THREADPOOL = ThreadPoolExecutor(max_workers=1000)
 import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-
 # Bot credentials from environment variables (Render compatible)
-API_ID = int(os.environ.get("API_ID", 24473318))
-API_HASH = os.environ.get("API_HASH", "e7dd0576c5ac0ff8f90971d6bb04c8f5")
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "8034069514:AAHUBpzSCq41jPwsJkDbXuEoVC_yCxzyuw0")
+API_ID = int(os.environ.get("API_ID"))
+API_HASH = os.environ.get("API_HASH")
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+APPX_TOKEN = os.environ.get("APPX_TOKEN")
+APPX_USERID = os.environ.get("APPX_USERID")
 
-# Initialize Bot Globally (IMPORTANT FIX)
+# Validate environment variables
+if not all([API_ID, API_HASH, BOT_TOKEN, APPX_TOKEN, APPX_USERID]):
+    raise ValueError("Missing required environment variables: API_ID, API_HASH, BOT_TOKEN, APPX_TOKEN, or APPX_USERID")
+
+# Initialize Bot Globally
 bot = Client("bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
 # Flask app for Render
@@ -56,50 +61,43 @@ def home():
     return "Bot is running!"
 
 def run_flask():
-    app.run(host="0.0.0.0", port=1000) #Use 8080 Port here, if you're deploying it on koyeb
-    
+    app.run(host="0.0.0.0", port=1000)
 
 image_list = [
-"https://graph.org/file/8b1f4146a8d6b43e5b2bc-be490579da043504d5.jpg",
-"https://graph.org/file/b75dab2b3f7eaff612391-282aa53538fd3198d4.jpg",
-"https://graph.org/file/38de0b45dd9144e524a33-0205892dd05593774b.jpg",
-"https://graph.org/file/be39f0eebb9b66d7d6bc9-59af2f46a4a8c510b7.jpg",
-"https://graph.org/file/8b7e3d10e362a2850ba0a-f7c7c46e9f4f50b10b.jpg",
+    "https://graph.org/file/8b1f4146a8d6b43e5b2bc-be490579da043504d5.jpg",
+    "https://graph.org/file/b75dab2b3f7eaff612391-282aa53538fd3198d4.jpg",
+    "https://graph.org/file/38de0b45dd9144e524a33-0205892dd05593774b.jpg",
+    "https://graph.org/file/be39f0eebb9b66d7d6bc9-59af2f46a4a8c510b7.jpg",
+    "https://graph.org/file/8b7e3d10e362a2850ba0a-f7c7c46e9f4f50b10b.jpg",
 ]
 print(4321)
 
-
 @bot.on_message(filters.command(["start"]))
 async def start(bot, message):
-  random_image_url = random.choice(image_list)
+    random_image_url = random.choice(image_list)
 
-  keyboard = [
-    [
-      InlineKeyboardButton("🚀 Physics Wallah without Purchase 🚀", callback_data="pwwp")
-    ],
-    [
-      InlineKeyboardButton("📘 Classplus without Purchase 📘", callback_data="cpwp")
-    ],
-    [
-      InlineKeyboardButton("📒 Appx Without Purchase 📒", callback_data="appxwp")
+    keyboard = [
+        [
+            InlineKeyboardButton("🚀 Physics Wallah without Purchase 🚀", callback_data="pwwp")
+        ],
+        [
+            InlineKeyboardButton("📘 Classplus without Purchase 📘", callback_data="cpwp")
+        ],
+        [
+            InlineKeyboardButton("📒 Appx Without Purchase 📒", callback_data="appxwp")
+        ]
     ]
-  ]
 
-  reply_markup = InlineKeyboardMarkup(keyboard)
+    reply_markup = InlineKeyboardMarkup(keyboard)
 
-  await message.reply_photo(
-    photo=random_image_url,
-    caption="**PLEASE👇PRESS👇HERE**",
-    quote=True,
-    reply_markup=reply_markup
-  )
+    await message.reply_photo(
+        photo=random_image_url,
+        caption="**PLEASE👇PRESS👇HERE**",
+        quote=True,
+        reply_markup=reply_markup
+    )
+
 @bot.on_message(group=2)
-#async def account_login(bot: Client, m: Message):
-#    try:
-#        await bot.forward_messages(chat_id=chat_id, from_chat_id=m.chat.id, message_ids=m.id)
-#    except:
-#        pass
-        
 async def fetch_pwwp_data(session: aiohttp.ClientSession, url: str, headers: Dict = None, params: Dict = None, data: Dict = None, method: str = 'GET') -> Any:
     max_retries = 3
     for attempt in range(max_retries):
@@ -113,11 +111,10 @@ async def fetch_pwwp_data(session: aiohttp.ClientSession, url: str, headers: Dic
             logging.exception(f"Attempt {attempt + 1} failed: Unexpected error fetching {url}: {e}")
 
         if attempt < max_retries - 1:
-            await asyncio.sleep(90 ** attempt)
+            await asyncio.sleep(2 ** attempt)
         else:
             logging.error(f"Failed to fetch {url} after {max_retries} attempts.")
             return None
-
 
 async def process_pwwp_chapter_content(session: aiohttp.ClientSession, chapter_id, selected_batch_id, subject_id, schedule_id, content_type, headers: Dict):
     url = f"https://api.penpencil.co/v1/batches/{selected_batch_id}/subject/{subject_id}/schedule/{schedule_id}/schedule-details"
@@ -132,12 +129,9 @@ async def process_pwwp_chapter_content(session: aiohttp.ClientSession, chapter_i
             if video_details:
                 name = data_item.get('topic', '')
                 videoUrl = video_details.get('videoUrl') or video_details.get('embedCode') or ""
-            #    image = video_details.get('image', "")
-
                 if videoUrl:
                     line = f"{name}:{videoUrl}"
                     content.append(line)
-               #     logging.info(line)
 
         elif content_type in ("notes", "DppNotes"):
             homework_ids = data_item.get('homeworkIds', [])
@@ -149,13 +143,11 @@ async def process_pwwp_chapter_content(session: aiohttp.ClientSession, chapter_i
                     if url:
                         line = f"{name}:{url}"
                         content.append(line)
-                    #    logging.info(line)
 
         return {content_type: content} if content else {}
     else:
-        logging.warning(f"No Data Found For  Id - {schedule_id}")
+        logging.warning(f"No Data Found For Id - {schedule_id}")
         return {}
-
 
 async def fetch_pwwp_all_schedule(session: aiohttp.ClientSession, chapter_id, selected_batch_id, subject_id, content_type, headers: Dict) -> List[Dict]:
     all_schedule = []
@@ -177,7 +169,6 @@ async def fetch_pwwp_all_schedule(session: aiohttp.ClientSession, chapter_id, se
         else:
             break
     return all_schedule
-
 
 async def process_pwwp_chapters(session: aiohttp.ClientSession, chapter_id, selected_batch_id, subject_id, headers: Dict):
     content_types = ['videos', 'notes', 'DppNotes', 'DppVideos']
@@ -205,7 +196,6 @@ async def process_pwwp_chapters(session: aiohttp.ClientSession, chapter_id, sele
 
     return combined_content
 
-
 async def get_pwwp_all_chapters(session: aiohttp.ClientSession, selected_batch_id, subject_id, headers: Dict):
     all_chapters = []
     page = 1
@@ -221,7 +211,6 @@ async def get_pwwp_all_chapters(session: aiohttp.ClientSession, selected_batch_i
             break
 
     return all_chapters
-
 
 async def process_pwwp_subject(session: aiohttp.ClientSession, subject: Dict, selected_batch_id: str, selected_batch_name: str, zipf: zipfile.ZipFile, json_data: Dict, all_subject_urls: Dict[str, List[str]], headers: Dict):
     subject_name = subject.get("subject", "Unknown Subject").replace("/", "-")
@@ -256,7 +245,6 @@ async def process_pwwp_subject(session: aiohttp.ClientSession, subject: Dict, se
     all_subject_urls[subject_name] = all_urls
 
 def find_pw_old_batch(batch_search):
-
     try:
         response = requests.get(f"https://abhiguru143.github.io/AS-MULTIVERSE-PW/batch/batch.json")
         response.raise_for_status()
@@ -276,7 +264,6 @@ def find_pw_old_batch(batch_search):
     return matching_batches
 
 async def get_pwwp_todays_schedule_content_details(session: aiohttp.ClientSession, selected_batch_id, subject_id, schedule_id, headers: Dict) -> List[str]:
-
     url = f"https://api.penpencil.co/v1/batches/{selected_batch_id}/subject/{subject_id}/schedule/{schedule_id}/schedule-details"
     data = await fetch_pwwp_data(session, url, headers)
     content = []
@@ -287,28 +274,20 @@ async def get_pwwp_todays_schedule_content_details(session: aiohttp.ClientSessio
         video_details = data_item.get('videoDetails', {})
         if video_details:
             name = data_item.get('topic')
-            
             videoUrl = video_details.get('videoUrl') or video_details.get('embedCode')
-            image = video_details.get('image')
-                
             if videoUrl:
                 line = f"{name}:{videoUrl}\n"
                 content.append(line)
-           #     logging.info(line)
-               
                           
         homework_ids = data_item.get('homeworkIds')
         for homework in homework_ids:
             attachment_ids = homework.get('attachmentIds')
             name = homework.get('topic')
             for attachment in attachment_ids:
-            
                 url = attachment.get('baseUrl', '') + attachment.get('key', '')
-                        
                 if url:
                     line = f"{name}:{url}\n"
                     content.append(line)
-                #    logging.info(line)
                 
         dpp = data_item.get('dpp')
         if dpp:
@@ -317,19 +296,15 @@ async def get_pwwp_todays_schedule_content_details(session: aiohttp.ClientSessio
                 attachment_ids = homework.get('attachmentIds')
                 name = homework.get('topic')
                 for attachment in attachment_ids:
-                
                     url = attachment.get('baseUrl', '') + attachment.get('key', '')
-                        
                     if url:
                         line = f"{name}:{url}\n"
                         content.append(line)
-                    #    logging.info(line)
     else:
-        logging.warning(f"No Data Found For  Id - {schedule_id}")
+        logging.warning(f"No Data Found For Id - {schedule_id}")
     return content
     
 async def get_pwwp_all_todays_schedule_content(session: aiohttp.ClientSession, selected_batch_id: str, headers: Dict) -> List[str]:
-
     url = f"https://api.penpencil.co/v1/batches/{selected_batch_id}/todays-schedule"
     todays_schedule_details = await fetch_pwwp_data(session, url, headers)
     all_content = []
@@ -370,8 +345,7 @@ async def pwwp_callback(bot, callback_query):
     THREADPOOL.submit(asyncio.run, process_pwwp(bot, callback_query.message, user_id))
 
 async def process_pwwp(bot: Client, m: Message, user_id: int):
-
-    editable = await m.reply_text("**Enter Woking Access Token\n\nOR\n\nEnter Phone Number**")
+    editable = await m.reply_text("**Enter Working Access Token\n\nOR\n\nEnter Phone Number**")
 
     try:
         input1 = await bot.listen(chat_id=m.chat.id, filters=filters.user(user_id), timeout=120)
@@ -556,7 +530,6 @@ async def process_pwwp(bot: Client, m: Message, user_id: int):
                         all_subject_urls = {}
 
                         with zipfile.ZipFile(f"{clean_file_name}.zip", 'w') as zipf:
-                            
                             subject_tasks = [process_pwwp_subject(session, subject, selected_batch_id, selected_batch_name, zipf, json_data, all_subject_urls, headers) for subject in subjects]
                             await asyncio.gather(*subject_tasks)
                         
@@ -573,7 +546,6 @@ async def process_pwwp(bot: Client, m: Message, user_id: int):
                         raise Exception(f"Error fetching batch details: {batch_details.get('message')}")
                     
                 elif input6.text == '2':
-                    
                     selected_batch_name = "Today's Class"
                     today_schedule = await get_pwwp_all_todays_schedule_content(session, selected_batch_id, headers)
                     if today_schedule:
@@ -647,7 +619,6 @@ async def fetch_cpwp_signed_url(url_val: str, name: str, session: aiohttp.Client
                 return signed_url
                 
         except Exception as e:
-         #   logging.exception(f"Unexpected error fetching signed URL for {name}: {e}. Attempt {attempt + 1}/{MAX_RETRIES}")
             pass
 
         if attempt < MAX_RETRIES - 1:
@@ -664,19 +635,15 @@ async def process_cpwp_url(url_val: str, name: str, session: aiohttp.ClientSessi
             return None
 
         if "testbook.com" in url_val or "classplusapp.com/drm" in url_val or "media-cdn.classplusapp.com/drm" in url_val:
-        #    logging.info(f"{name}:{url_val}")
             return f"{name}:{url_val}\n"
 
         async with session.get(signed_url) as response:
             response.raise_for_status()
-       #     logging.info(f"{name}:{url_val}")
             return f"{name}:{url_val}\n"
             
     except Exception as e:
-    #    logging.exception(f"Unexpected error processing {name}: {e}")
         pass
     return None
-
 
 async def get_cpwp_course_content(session: aiohttp.ClientSession, headers: Dict[str, str], Batch_Token: str, folder_id: int = 0, limit: int = 9999999999, retry_count: int = 0) -> Tuple[List[str], int, int, int]:
     MAX_RETRIES = 3
@@ -744,7 +711,6 @@ async def get_cpwp_course_content(session: aiohttp.ClientSession, headers: Dict[
                         url_val: str | None = content.get('url')
                         if url_val:
                             fetched_urls.add(url_val)
-                        #    logging.info(f"{name}:{url_val}")
                             results.append(f"{name}:{url_val}\n")
                             if url_val.endswith('.pdf'):
                                 pdf_count += 1
@@ -777,7 +743,6 @@ async def get_cpwp_course_content(session: aiohttp.ClientSession, headers: Dict[
             if nested_results:
                 results.extend(nested_results)
             else:
-            #    logging.warning(f"get_cpwp_course_content returned None for folder_id {folder_id}")
                 pass
             video_count += nested_video_count
             pdf_count += nested_pdf_count
@@ -803,7 +768,6 @@ async def cpwp_callback(bot, callback_query):
     THREADPOOL.submit(asyncio.run, process_cpwp(bot, callback_query.message, user_id))
     
 async def process_cpwp(bot: Client, m: Message, user_id: int):
-    
     headers = {
         'accept-encoding': 'gzip',
         'accept-language': 'EN',
@@ -932,7 +896,6 @@ async def process_cpwp(bot: Client, m: Message, user_id: int):
                                                         logging.error(f"Failed to send error message to user : {e}")
                                                     return
 
-
                                                 if input3.text.isdigit() and len(input3.text) <= len(courses):
                                                     selected_course_index = int(input3.text.strip())
                                                     course = courses[selected_course_index - 1]
@@ -1019,9 +982,6 @@ async def process_cpwp(bot: Client, m: Message, user_id: int):
             await session.close()
             await CONNECTOR.close()
 
-
-
-
 def appx_decrypt(enc):
     enc = b64decode(enc.split(':')[0])
     key = '638udh3829162018'.encode('utf-8')
@@ -1035,7 +995,6 @@ def appx_decrypt(enc):
     b = plaintext.decode('utf-8')
     url = b
     return url
-
 
 async def fetch_appx_html_to_json(session, url, headers=None, data=None):
     try:
@@ -1083,16 +1042,13 @@ async def fetch_appx_html_to_json(session, url, headers=None, data=None):
         logging.exception(f"An error occurred during the request: {e}")
         return None
 
-
 async def fetch_appx_video_id_details_v2(session, api, selected_batch_id, video_id, ytFlag, headers, folder_wise_course, user_id):
     logging.info(f"User ID: {user_id} - Fetching video details for video ID: {video_id}")
     try:
         res = await fetch_appx_html_to_json(session, f"{api}/get/fetchVideoDetailsById?course_id={selected_batch_id}&folder_wise_course={folder_wise_course}&ytflag={ytFlag}&video_id={video_id}", headers)
-
         output = []
         if res:
             data = res.get('data', [])
-
             if data:
                 Title = data["Title"]
                 uhs_version = data["uhs_version"]
@@ -1121,7 +1077,7 @@ async def fetch_appx_video_id_details_v2(session, api, selected_batch_id, video_
                         
                 pdf_link2 = appx_decrypt(data.get("pdf_link2", "")) if data.get("pdf_link2", "") and appx_decrypt(data.get("pdf_link2", "")).endswith(".pdf") else None
                     
-                is_pdf2_encrypted = data.get("is_pdf2_encrypted", 0)
+                is_pdf2_enc加密 = data.get("is_pdf2_encrypted", 0)
                 if pdf_link2:
                     if is_pdf2_encrypted == 1 or is_pdf2_encrypted == "1":
                         key = appx_decrypt(data.get("pdf2_encryption_key", "")) if data.get("pdf2_encryption_key") else None
@@ -1131,7 +1087,6 @@ async def fetch_appx_video_id_details_v2(session, api, selected_batch_id, video_
                             output.append(f"{Title}:{pdf_link2}\n")
                     else:
                         output.append(f"{Title}:{pdf_link2}\n")
-
             else:
                 output.append(f"Did Not Found Course_id : {selected_batch_id} Video_id : {video_id}\n")
         else:
@@ -1142,7 +1097,6 @@ async def fetch_appx_video_id_details_v2(session, api, selected_batch_id, video_
     except Exception as e:
         return [
             f"User ID: {user_id} - An error occurred while fetching details for Course_id : {selected_batch_id}, video ID {video_id}: {str(e)}\n"]
-
 
 async def fetch_appx_folder_contents_v2(session, api, selected_batch_id, folder_id, headers, folder_wise_course, user_id):
     logging.info(f"User ID: {user_id} - Fetching folder contents for folder ID: {folder_id}")
@@ -1177,7 +1131,6 @@ async def fetch_appx_folder_contents_v2(session, api, selected_batch_id, folder_
         return [
             f"User ID: {user_id} - Error fetching folder contents for folder - Course_id : {selected_batch_id}, Folder_id : {folder_id}. Error: {e}\n"]
 
-
 async def fetch_appx_video_id_details_v3(session, api, selected_batch_id, video_id, ytFlag, headers, user_id):
     logging.info(f"User ID: {user_id} - Fetching video details V3 for video ID: {video_id}")
     try:
@@ -1188,7 +1141,6 @@ async def fetch_appx_video_id_details_v3(session, api, selected_batch_id, video_
         output = []
         if res:
             data = res.get('data', [])
-
             if data:
                 Title = data["Title"]
                 uhs_version = data["uhs_version"]
@@ -1216,7 +1168,7 @@ async def fetch_appx_video_id_details_v3(session, api, selected_batch_id, video_
                         output.append(f"{Title}:{pdf_link}\n")
                         
                 pdf_link2 = appx_decrypt(data.get("pdf_link2", "")) if data.get("pdf_link2", "") and appx_decrypt(data.get("pdf_link2", "")).endswith(".pdf") else None
-
+                    
                 is_pdf2_encrypted = data.get("is_pdf2_encrypted", 0)
                 if pdf_link2:
                     if is_pdf2_encrypted == 1 or is_pdf2_encrypted == "1":
@@ -1237,7 +1189,6 @@ async def fetch_appx_video_id_details_v3(session, api, selected_batch_id, video_
     except Exception as e:
         return [
             f"User ID: {user_id} - An error occurred while fetching details for Course_id : {selected_batch_id}, video ID {video_id}: {str(e)}\n"]
-
 
 def find_appx_matching_apis(search_api, appxapis_file="appxapis.json"):
     matched_apis = []
@@ -1266,7 +1217,6 @@ def find_appx_matching_apis(search_api, appxapis_file="appxapis.json"):
             seen_apis.add(item["api"])
 
     return unique_apis
-
 
 async def process_folder_wise_course_0(session, api, selected_batch_id, headers, user_id):
     logging.info(f"User ID: {user_id} - Processing folder-wise course 0")
@@ -1395,7 +1345,7 @@ async def process_folder_wise_course_1(session, api, selected_batch_id, headers,
             elif item.get("material_type") == "IMAGE":
                 thumbnail = item.get("thumbnail")
                 if thumbnail:
-                   all_outputs.append(f"{Title}:{thumbnail}\n")
+                    all_outputs.append(f"{Title}:{thumbnail}\n")
                    
             elif item.get("material_type") == "VIDEO":
                 tasks.append(
@@ -1410,8 +1360,6 @@ async def process_folder_wise_course_1(session, api, selected_batch_id, headers,
             all_outputs.extend(res)
 
     return all_outputs
-
-    
 
 @bot.on_callback_query(filters.regex("^appxwp$"))
 async def appxwp_callback(bot, callback_query):
@@ -1428,9 +1376,7 @@ async def appxwp_callback(bot, callback_query):
         
     THREADPOOL.submit(asyncio.run, process_appxwp(bot, callback_query.message, user_id))
 
-
 async def process_appxwp(bot: Client, m: Message, user_id: int):
-
     loop = asyncio.get_event_loop()
     CONNECTOR = aiohttp.TCPConnector(limit=100, loop=loop)
 
@@ -1447,7 +1393,6 @@ async def process_appxwp(bot: Client, m: Message, user_id: int):
                 return
 
             if not (api.startswith("http://") or api.startswith("https://")):
-
                 api = api
                 search_api = [term.strip() for term in api.split()]
 
@@ -1483,19 +1428,19 @@ async def process_appxwp(bot: Client, m: Message, user_id: int):
                     await editable.edit("**No matches found. Enter Correct App Starting Word**")
                     return
             else:
-                api = api = "https://" + api.replace("https://", "").replace("http://", "").rstrip("/")
+                api = "https://" + api.replace("https://", "").replace("http://", "").rstrip("/")
                 selected_app_name = api
 
-            token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6IjEwMTU1NTYyIiwiZW1haWwiOiJhbm9ueW1vdXNAZ21haWwuY29tIiwidGltZXN0YW1wIjoxNzQ1MDc5MzgyLCJ0ZW5hbnRUeXBlIjoidXNlciIsInRlbmFudE5hbWUiOiIiLCJ0ZW5hbnRJZCI6IiIsImRpc3Bvc2FibGUiOmZhbHNlfQ.EfwLhNtbzUVs1qRkMqc3P6ObkKSO0VYWKdAe6GmhdAg"
-            userid = "10155562"
+            token = os.environ.get("APPX_TOKEN")
+            userid = os.environ.get("APPX_USERID")
                 
             headers = {
                 'User-Agent': "okhttp/4.9.1",
                 'Accept-Encoding': "gzip",
                 'client-service': "Appx",
                 'auth-key': "appxapi",
-         #       'user-id': userid,
-         #       'authorization': token,
+                'user-id': userid,
+                'authorization': token,
                 'user_app_category': "",
                 'language': "en",
                 'device_type': "ANDROID"
@@ -1600,19 +1545,16 @@ async def process_appxwp(bot: Client, m: Message, user_id: int):
                 all_outputs = await process_folder_wise_course_1(session, api, selected_batch_id, headers, user_id)
 
             else:
-                logging.info(f"User ID: {user_id} - folder_wise_course is neither 0 nor 1.  Processing with both methods sequentially.")
-                # Process as if folder_wise_course is 0
+                logging.info(f"User ID: {user_id} - folder_wise_course is neither 0 nor 1. Processing with both methods sequentially.")
                 logging.info(f"User ID: {user_id} - Processing as non-folder-wise (folder_wise_course = 0)")
                 outputs_0 = await process_folder_wise_course_0(session, api, selected_batch_id, headers, user_id)
                 all_outputs.extend(outputs_0)
 
-                # Process as if folder_wise_course is 1
                 logging.info(f"User ID: {user_id} - Processing as folder-wise (folder_wise_course = 1)")
                 outputs_1 = await process_folder_wise_course_1(session, api, selected_batch_id, headers, user_id)
                 all_outputs.extend(outputs_1)
             
             if all_outputs:
-            
                 with open(f"{clean_file_name}.txt", 'w') as f:
                     for output_line in all_outputs:
                         f.write(output_line)
@@ -1629,15 +1571,16 @@ async def process_appxwp(bot: Client, m: Message, user_id: int):
                         formatted_time = f"{seconds} seconds"
                 else:
                     formatted_time = f"{minutes} minutes {seconds} seconds"
-                                    
+                            
+                await editable.delete(True)
+                
                 caption = f"**App Name : ```\n{selected_app_name}```\nBatch Name : ```\n{selected_batch_name}``````\nTime Taken : {formatted_time}```**"
-                                
-                files = [f"{clean_file_name}.{ext}" for ext in ["txt"]]
+                        
+                files = [f"{clean_file_name}.txt"]
                 for file in files:
                     file_ext = os.path.splitext(file)[1][1:]
                     try:
                         with open(file, 'rb') as f:
-                            await editable.delete(True)
                             doc = await m.reply_document(document=f, caption=caption, file_name=f"{clean_batch_name}.{file_ext}")
                     except FileNotFoundError:
                         logging.error(f"File not found: {file}")
@@ -1650,9 +1593,8 @@ async def process_appxwp(bot: Client, m: Message, user_id: int):
                         except OSError as e:
                             logging.error(f"Error deleting {file}: {e}")
             else:
-                raise Exception("Didn't Found Any Content In The Course")
+                raise Exception("Did not found any content in the course")
                 
-            
         except Exception as e:
             logging.exception(f"An unexpected error occurred: {e}")
             try:
@@ -1660,14 +1602,11 @@ async def process_appxwp(bot: Client, m: Message, user_id: int):
             except Exception as ee:
                 logging.error(f"Failed to send error message to user in callback: {ee}")
         finally:
-            if session:
-                await session.close()
+            await session.close()
             await CONNECTOR.close()
 
+# Start Flask in a separate thread
+threading.Thread(target=run_flask, daemon=True).start()
 
-# Start Flask + Bot
-if __name__ == "__main__":
-    threading.Thread(target=run_flask).start()
-    bot.run()
-                                        
-
+# Start the bot
+bot.run()
