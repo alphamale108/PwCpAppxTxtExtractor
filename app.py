@@ -40,9 +40,9 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Bot credentials from environment variables (Render compatible)
-API_ID = int(os.environ.get("API_ID"))
-API_HASH = os.environ.get("API_HASH")
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
+API_ID = int(os.environ.get("20081897"))
+API_HASH = os.environ.get("8051dfd6c39c07e3eb56d58ef7f9f15f")
+BOT_TOKEN = os.environ.get("8437726474:AAE6-hpZIu_D3KuuwcTW0q4cmLKEbnwj-Bg")
 APPX_TOKEN = os.environ.get("APPX_TOKEN")
 APPX_USERID = os.environ.get("APPX_USERID")
 
