@@ -61,7 +61,7 @@ def home():
     return "Bot is running!"
 
 def run_flask():
-    app.run(host="0.0.0.0", port=8080)
+    app.run(host="0.0.0.0", port=1000)
 
 image_list = [
     "https://graph.org/file/8b1f4146a8d6b43e5b2bc-be490579da043504d5.jpg",
