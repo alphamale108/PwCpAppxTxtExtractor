@@ -1,10 +1,10 @@
 import os
 
 # Fetch environment variables
-api_id = os.getenv("API_ID")
-api_hash = os.getenv("API_HASH")
-bot_token = os.getenv("BOT_TOKEN")
-auth_users = os.getenv("AUTH_USERS", "").split(",")  # Split comma-separated IDs into a list
+api_id = os.getenv("20081897")
+api_hash = os.getenv("8051dfd6c39c07e3eb56d58ef7f9f15f")
+bot_token = os.getenv("8437726474:AAE6-hpZIu_D3KuuwcTW0q4cmLKEbnwj-Bg")
+auth_users = os.getenv("7292006343").split(",")  # Split comma-separated IDs into a list
 
 # Validate environment variables
 if not all([api_id, api_hash, bot_token]):
